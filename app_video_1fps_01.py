@@ -17,45 +17,36 @@ SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 
 @st.cache_resource
 def setup_environment(drive_folder_id):
-    # 1. Patch the signal module to prevent the ValueError
-    import signal
-    import sys
-    
-    # Create a dummy function that does nothing
-    def dummy_signal_handler(signum, frame):
-        pass
-    
-    # Monkey-patch signal.signal to do nothing when called by ultralytics
-    # This prevents the thread-safety error
-    original_signal = signal.signal
-    def patched_signal(signalnum, handler):
-        # We allow it to run only if it's the main thread, otherwise ignore
-        if signal.getsignal(signalnum) == handler:
-            return handler
-        try:
-            return original_signal(signalnum, handler)
-        except ValueError:
-            return dummy_signal_handler
-            
-    signal.signal = patched_signal
-
-    # 2. Disable Hub and proceed with imports
     import os
-    os.environ["ULTRALYTICS_HUB_DISABLED"] = "true"
-    
+    import gdown
     from ultralytics import YOLO
     from transformers import pipeline
     from tensorflow import keras
-  
-    if not os.path.exists(BASE_MODEL_DIR):
-        gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
-        
-        yolo = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     
-        emotion_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
-        gender_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "gender"))
-        age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
-    return yolo, emotion_pipe, gender_pipe, age_model
+    # Ensure model folder exists
+    if not os.path.exists(BASE_MODEL_DIR):
+        try:
+            gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
+        except Exception as e:
+            st.error(f"Failed to download models: {e}")
+            return None
+    
+        try:
+        # Load models
+            yolo_path = os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt")
+            emo_path = os.path.join(BASE_MODEL_DIR, "emotion")
+            gen_path = os.path.join(BASE_MODEL_DIR, "gender")
+            age_path = os.path.join(BASE_MODEL_DIR, "age/best_model.h5")
+    
+            yolo = YOLO(yolo_path)
+            emotion_pipe = pipeline("image-classification", model=emo_path)
+            gender_pipe = pipeline("image-classification", model=gen_path)
+            age_model = keras.models.load_model(age_path, compile=False)
+            
+            return yolo, emotion_pipe, gender_pipe, age_model
+        except Exception as e:
+            st.error(f"Error initializing models: {e}")
+            return None
 
 # --- MAIN APP ---
 st.title("🎥 Video Face Analysis Browser")
