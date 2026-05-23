@@ -80,17 +80,25 @@ if models:
                         face_id = i + 1
                         crop = pil_img.crop((x1, y1, x2, y2))
                         
-                        age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
-                        emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
-                        gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
+                        # ... (your prediction logic remains the same) ...
                         
-                        frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
+                        # Draw Rectangle around person (Original Orange)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
                         
-                        # Draw visuals
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
-                        cv2.putText(frame, f"ID: {face_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 165, 0), 2)
-                    
-                    frames_data[f"Frame {frame_idx} (Time: {frame_idx/fps:.1f}s)"] = (frame, frame_results)
+                        # Draw ID Label with Blue Box and White Text
+                        label = f"ID: {face_id}"
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        font_scale = 1.0 # Increased font size
+                        thickness = 2
+                        
+                        # Calculate text size for the background box
+                        (w, h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+                        
+                        # Draw filled blue rectangle for the ID background
+                        cv2.rectangle(frame, (x1, y1 - h - 10), (x1 + w, y1), (255, 0, 0), -1)
+                        
+                        # Draw white text on top
+                        cv2.putText(frame, label, (x1, y1 - 5), font, font_scale, (255, 255, 255), thickness)
                 
                 st.session_state['processed_frames'] = frames_data
                 cap.release()
@@ -107,6 +115,8 @@ if models:
             with col2:
                 st.markdown("### Frame Results")
                 if frame_data:
-                    st.table(pd.DataFrame(frame_data).set_index('ID'))
+                    df = pd.DataFrame(frame_data)
+                    # Force ID as a column and set as index for display
+                    st.table(df[['ID', 'Age', 'Emotion', 'Gender']].set_index('ID'))
                 else:
                     st.info("No faces detected.")
