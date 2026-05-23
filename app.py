@@ -55,11 +55,65 @@ def setup_environment(drive_folder_id):
         st.error(f"Error loading models: {e}")
         return None
 
-# --- STREAMLIT UI ---
-st.title("Face Analysis App")
+# ==============================================================================
+# IMAGE ANALYSIS PIPELINE (Add this to your app.py)
+# ==============================================================================
 
-if st.button("Initialize & Debug Models"):
-    models = setup_environment(SECRET_FOLDER_ID)
-    if models:
-        st.success("System Ready: All models loaded!")
-        st.session_state['models'] = models
+if 'models' in st.session_state:
+    # Retrieve models from session state
+    yolo, emotion_pipe, gender_pipe, age_model = st.session_state['models']
+    
+    st.markdown("---")
+    uploaded_file = st.file_uploader("Upload an image for analysis", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        # Convert uploaded file to OpenCV format
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, 1)
+        
+        # 1. YOLO Detection
+        results = yolo(frame, classes=[0], verbose=False)
+        boxes = [list(map(int, box.xyxy[0])) for box in results[0].boxes]
+        coords = get_clean_boxes(boxes, iou_threshold=0.3)
+        
+        # 2. Process Detections
+        results_list = []
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(frame_rgb)
+        
+        for i, (x1, y1, x2, y2) in enumerate(coords):
+            face_crop = pil_img.crop((x1, y1, x2, y2))
+            
+            # Age Estimation
+            resized_age = face_crop.resize((224, 224))
+            age_array = np.expand_dims(np.array(resized_age, dtype=np.float32) / 255.0, axis=0)
+            age = float(age_model.predict(age_array, verbose=0)[0][0])
+            
+            # Emotion
+            emo_results = emotion_pipe(face_crop)
+            emotion = max(emo_results, key=lambda x: x['score'])['label']
+            
+            # Gender
+            gen_results = gender_pipe(face_crop)
+            gender = max(gen_results, key=lambda x: x['score'])['label']
+            
+            results_list.append({'ID': i+1, 'Age': int(age), 'Emotion': emotion, 'Gender': gender})
+            
+            # Draw overlay on image
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            cv2.putText(frame, f"{gender}, {int(age)}", (x1, y1-10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
+        # 3. Layout: Image on Left, Results Table on Right
+        col1, col2 = st.columns([2, 1]) 
+
+        with col1:
+            st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Analyzed Image", use_container_width=True)
+
+        with col2:
+            st.subheader("Analysis Results")
+            if results_list:
+                df = pd.DataFrame(results_list)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.warning("No faces detected in the image.")
