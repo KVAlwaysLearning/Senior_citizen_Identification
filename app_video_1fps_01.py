@@ -80,16 +80,23 @@ if models:
                     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                     frame_results = []
                     
-                    for i, (x1, y1, x2, y2) in enumerate(coords):
-                        crop = pil_img.crop((x1, y1, x2, y2))
-                        age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
-                        emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
-                        gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
-                        
-                        frame_results.append({'ID': i+1, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
-                    
-                    frames_data[f"Frame {frame_idx} (Time: {frame_idx/fps:.1f}s)"] = (frame, frame_results)
+                   for i, (x1, y1, x2, y2) in enumerate(coords):
+    face_id = i + 1  # Create the ID
+    crop = pil_img.crop((x1, y1, x2, y2))
+    
+    # Analyze
+    age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
+    emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
+    gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
+    
+    # Store results
+    frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
+    
+    # 1. Draw Rectangle
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
+    
+    # 2. Draw ID Label above the rectangle
+    cv2.putText(frame, f"ID: {face_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 165, 0), 2)
                 
                 st.session_state['processed_frames'] = frames_data
                 cap.release()
@@ -102,5 +109,10 @@ if models:
         with col1:
             st.image(cv2.cvtColor(frame_img, cv2.COLOR_BGR2RGB), use_container_width=True)
         with col2:
-            st.markdown("### Frame Results")
-            st.table(pd.DataFrame(frame_data))
+    st.markdown("### Frame Results")
+    if frame_data:
+        # Set ID as the index for a cleaner table
+        df = pd.DataFrame(frame_data)
+        st.table(df.set_index('ID'))
+    else:
+        st.info("No faces detected.")
