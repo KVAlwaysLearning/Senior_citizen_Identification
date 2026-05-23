@@ -25,14 +25,14 @@ def setup_environment(drive_folder_id):
     from transformers import pipeline
     from tensorflow import keras
   
-   if not os.path.exists(BASE_MODEL_DIR):
-    gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
+    if not os.path.exists(BASE_MODEL_DIR):
+        gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
+        
+        yolo = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     
-    yolo = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
-
-    emotion_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
-    gender_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "gender"))
-    age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
+        emotion_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
+        gender_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "gender"))
+        age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
     return yolo, emotion_pipe, gender_pipe, age_model
 
 # --- MAIN APP ---
