@@ -4,6 +4,7 @@ import gdown
 from ultralytics import YOLO
 from transformers import pipeline
 from tensorflow import keras
+import shutil 
 
 # Define BASE_MODEL_DIR relative to the app's current directory
 BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
@@ -16,12 +17,18 @@ except KeyError:
     st.error("Debugger: 'drive_folder_id' not found in Streamlit secrets!")
     st.stop()
 
+
+
 @st.cache_resource
 def setup_environment(drive_folder_id):
-    """Downloads models from Drive and initializes them."""
+    # If the folder exists but you want to ensure it's fresh/complete:
+    if os.path.exists(BASE_MODEL_DIR):
+        # OPTIONAL: Delete it to force a fresh download if you added new files
+        # shutil.rmtree(BASE_MODEL_DIR) 
+        pass 
+    
     if not os.path.exists(BASE_MODEL_DIR):
         with st.spinner("Downloading models from Drive..."):
-            # gdown will download the contents into BASE_MODEL_DIR
             gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=False)
     
     # Validation check
