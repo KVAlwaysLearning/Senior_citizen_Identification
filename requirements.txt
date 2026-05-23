@@ -1,8 +1,8 @@
 streamlit
 ultralytics
 transformers
-torch
-tensorflow
+torch==2.0.1
+tensorflow==2.14.0
 gdown
 opencv-python-headless
 pillow
