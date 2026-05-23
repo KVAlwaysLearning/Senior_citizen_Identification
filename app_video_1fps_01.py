@@ -109,10 +109,10 @@ if models:
         with col1:
             st.image(cv2.cvtColor(frame_img, cv2.COLOR_BGR2RGB), use_container_width=True)
         with col2:
-    st.markdown("### Frame Results")
-    if frame_data:
-        # Set ID as the index for a cleaner table
-        df = pd.DataFrame(frame_data)
-        st.table(df.set_index('ID'))
-    else:
-        st.info("No faces detected.")
+            st.markdown("### Frame Results")
+            if frame_data:
+                # Set ID as the index for a cleaner table
+                df = pd.DataFrame(frame_data)
+                st.table(df.set_index('ID'))
+            else:
+                st.info("No faces detected.")
