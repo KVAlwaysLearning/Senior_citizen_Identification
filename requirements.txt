@@ -1,0 +1,9 @@
+streamlit
+ultralytics
+transformers
+torch
+tensorflow
+gdown
+opencv-python-headless
+pillow
+pandas
