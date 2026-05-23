@@ -10,7 +10,7 @@ BASE_MODEL_DIR = "/content/all_models" # Define the missing variable
 
 # --- ACCESS SECRETS ---
 try:
-    SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
+    SECRET_FOLDER_ID = st.secrets["1eGlOyj6Fl1gIT9mXp6Baor_wravdP2wV"]
 except KeyError:
     st.error("Debugger: 'drive_folder_id' not found in Streamlit secrets!")
     st.stop()
