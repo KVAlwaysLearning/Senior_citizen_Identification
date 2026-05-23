@@ -80,7 +80,7 @@ if models:
                     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                     frame_results = []
                     
-                   for i, (x1, y1, x2, y2) in enumerate(coords):
+                for i, (x1, y1, x2, y2) in enumerate(coords):
                         face_id = i + 1  # Create the ID
                         crop = pil_img.crop((x1, y1, x2, y2))
                         
