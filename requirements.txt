@@ -1,3 +1,4 @@
+setuptools
 streamlit
 ultralytics==8.0.0
 torch==2.0.1
@@ -9,4 +10,3 @@ opencv-python-headless
 pillow
 pandas
 h5py
-setuptools
