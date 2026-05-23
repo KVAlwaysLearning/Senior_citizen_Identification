@@ -15,9 +15,9 @@ st.set_page_config(layout="wide", page_title="Video Analysis Browser")
 BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
 SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 
-# Helper: Box Cleanup
 def get_clean_boxes(boxes, iou_threshold=0.3):
     if not boxes: return []
+    # Sort boxes by area to process smaller (closer) faces last
     boxes = sorted(boxes, key=lambda b: (b[2]-b[0]) * (b[3]-b[1]), reverse=False)
     keep = []
     while boxes:
@@ -47,7 +47,7 @@ def setup_environment(drive_folder_id):
     return yolo, emotion_pipe, gender_pipe, age_model
 
 # --- MAIN APP ---
-st.title("🎥 5-Frame Video Analysis")
+st.title("🎥 5-Frame Video Analysis Browser")
 models = setup_environment(SECRET_FOLDER_ID)
 
 if models:
@@ -60,7 +60,7 @@ if models:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
         
-        # Calculate indices for exactly 5 frames
+        # Calculate exactly 5 equidistant indices
         frame_indices = np.linspace(0, total_frames - 1, 5, dtype=int)
 
         if 'processed_frames' not in st.session_state:
@@ -80,13 +80,16 @@ if models:
                     for i, (x1, y1, x2, y2) in enumerate(coords):
                         face_id = i + 1
                         crop = pil_img.crop((x1, y1, x2, y2))
+                        
+                        # Predict
                         age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
                         emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
                         gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
                         
+                        # Add to list with ID as the first key
                         frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
                         
-                        # Draw Rectangle and ID Tag
+                        # Draw Rectangle and ID Tag on image
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
                         cv2.rectangle(frame, (x1, y1-30), (x1+60, y1), (255, 165, 0), -1)
                         cv2.putText(frame, f"ID:{face_id}", (x1+5, y1-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
@@ -106,6 +109,8 @@ if models:
         with col2:
             st.markdown("### Analysis Report")
             if frame_data:
-                st.table(pd.DataFrame(frame_data))
+                # Pandas will naturally keep 'ID' as the first column because it is the first key in the dict
+                df = pd.DataFrame(frame_data)
+                st.table(df)
             else:
                 st.info("No faces detected in this frame.")
