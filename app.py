@@ -5,12 +5,13 @@ from ultralytics import YOLO
 from transformers import pipeline
 from tensorflow import keras
 
-# --- CONFIGURATION ---
-BASE_MODEL_DIR = "/content/all_models" # Define the missing variable
+# Define BASE_MODEL_DIR relative to the app's current directory
+BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
 
 # --- ACCESS SECRETS ---
+# This looks for the key 'drive_folder_id' in your Streamlit Cloud Secrets
 try:
-    SECRET_FOLDER_ID = st.secrets["1eGlOyj6Fl1gIT9mXp6Baor_wravdP2wV"]
+    SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 except KeyError:
     st.error("Debugger: 'drive_folder_id' not found in Streamlit secrets!")
     st.stop()
@@ -20,6 +21,7 @@ def setup_environment(drive_folder_id):
     """Downloads models from Drive and initializes them."""
     if not os.path.exists(BASE_MODEL_DIR):
         with st.spinner("Downloading models from Drive..."):
+            # gdown will download the contents into BASE_MODEL_DIR
             gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=False)
     
     # Validation check
