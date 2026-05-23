@@ -15,27 +15,6 @@ st.set_page_config(layout="wide", page_title="Video Analysis Browser")
 BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
 SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 
-def get_clean_boxes(boxes, iou_threshold=0.3):
-    if not boxes: return []
-    # Sort boxes by area to process smaller (closer) faces last
-    boxes = sorted(boxes, key=lambda b: (b[2]-b[0]) * (b[3]-b[1]), reverse=False)
-    keep = []
-    while boxes:
-        current = boxes.pop(0)
-        keep.append(current)
-        next_boxes = []
-        for box in boxes:
-            x1, y1 = max(current[0], box[0]), max(current[1], box[1])
-            x2, y2 = min(current[2], box[2]), min(current[3], box[3])
-            inter = max(0, x2 - x1) * max(0, y2 - y1)
-            area1 = (current[2]-current[0]) * (current[3]-current[1])
-            area2 = (box[2]-box[0]) * (box[3]-box[1])
-            union = area1 + area2 - inter
-            iou = inter / union if union > 0 else 0
-            if iou < iou_threshold: next_boxes.append(box)
-        boxes = next_boxes
-    return keep
-
 @st.cache_resource
 def setup_environment(drive_folder_id):
     if not os.path.exists(BASE_MODEL_DIR):
@@ -57,22 +36,22 @@ if models:
     if uploaded_video:
         with open("temp_vid.mp4", "wb") as f: f.write(uploaded_video.read())
         cap = cv2.VideoCapture("temp_vid.mp4")
+        
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
-        
-        # Calculate exactly 5 equidistant indices
-        frame_indices = np.linspace(0, total_frames - 1, 5, dtype=int)
+        # Calculate exactly 5 equally spaced indices
+        target_indices = np.linspace(0, total_frames - 1, 5, dtype=int)
 
         if 'processed_frames' not in st.session_state:
-            with st.spinner("Analyzing 5 key frames..."):
+            with st.spinner("Processing 5 key frames..."):
                 frames_data = {}
-                for idx in frame_indices:
+                for idx in target_indices:
                     cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
                     ret, frame = cap.read()
                     if not ret: continue
                     
                     results = yolo(frame, classes=[0], verbose=False)
-                    coords = get_clean_boxes([list(map(int, b.xyxy[0])) for b in results[0].boxes])
+                    coords = [list(map(int, b.xyxy[0])) for b in results[0].boxes]
                     
                     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                     frame_results = []
@@ -81,18 +60,15 @@ if models:
                         face_id = i + 1
                         crop = pil_img.crop((x1, y1, x2, y2))
                         
-                        # Predict
                         age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
                         emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
                         gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
                         
-                        # Add to list with ID as the first key
                         frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
                         
-                        # Draw Rectangle and ID Tag on image
+                        # Draw ID on Rectangle
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
-                        cv2.rectangle(frame, (x1, y1-30), (x1+60, y1), (255, 165, 0), -1)
-                        cv2.putText(frame, f"ID:{face_id}", (x1+5, y1-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        cv2.putText(frame, f"ID:{face_id}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 165, 0), 3)
                     
                     frames_data[f"Frame {idx} (Time: {idx/fps:.1f}s)"] = (frame, frame_results)
                 
@@ -109,8 +85,6 @@ if models:
         with col2:
             st.markdown("### Analysis Report")
             if frame_data:
-                # Pandas will naturally keep 'ID' as the first column because it is the first key in the dict
-                df = pd.DataFrame(frame_data)
-                st.table(df)
+                st.table(pd.DataFrame(frame_data).set_index('ID'))
             else:
                 st.info("No faces detected in this frame.")
