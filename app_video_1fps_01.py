@@ -51,55 +51,60 @@ if models:
     yolo, emotion_pipe, gender_pipe, age_model = models
     uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 
-    if uploaded_video:
-        with open("temp_vid.mp4", "wb") as f: f.write(uploaded_video.read())
-        
-        if 'processed_frames' not in st.session_state:
+    if 'processed_frames' not in st.session_state:
             with st.spinner("Processing video..."):
                 cap = cv2.VideoCapture("temp_vid.mp4")
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 fps = cap.get(cv2.CAP_PROP_FPS)
+                
+                # Calculate 5 equally spaced frame indices
+                # We use np.linspace to get 5 evenly distributed points across total_frames
+                target_indices = np.linspace(0, total_frames - 1, 5, dtype=int)
+                
                 frames_data = {}
                 frame_idx = 0
-                captured_count = 0  # Counter for the number of frames saved
                 
-                while cap.isOpened() and captured_count < 5: # Limit to 5 frames
+                while cap.isOpened():
                     ret, frame = cap.read()
                     if not ret: break
                     
+                    if frame_idx in target_indices:
+                        # Process only these specific frames
+                        results = yolo(frame, classes=[0], verbose=False)
+                        coords = [list(map(int, b.xyxy[0])) for b in results[0].boxes]
+                        pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                        frame_results = []
+                        
+                        for i, (x1, y1, x2, y2) in enumerate(coords):
+                            face_id = i + 1
+                            crop = pil_img.crop((x1, y1, x2, y2))
+                            
+                            # Predictions
+                            age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
+                            emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
+                            gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
+                            
+                            frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
+                            
+                            # Drawing logic
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
+                            label = f"ID: {face_id}"
+                            (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)
+                            cv2.rectangle(frame, (x1, y1 - h - 10), (x1 + w, y1), (255, 0, 0), -1)
+                            cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        
+                        # Use the captured index to label the frame
+                        timestamp = frame_idx / fps
+                        frames_data[f"Frame at {timestamp:.1f}s"] = (frame, frame_results)
+                    
                     frame_idx += 1
-                    # Skip frames to pick one every 30 frames (or adjust for video length)
-                    if frame_idx % 30 != 0: continue 
-                    
-                    # Process frame
-                    results = yolo(frame, classes=[0], verbose=False)
-                    coords = [list(map(int, b.xyxy[0])) for b in results[0].boxes]
-                    pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    frame_results = []
-                    
-                    for i, (x1, y1, x2, y2) in enumerate(coords):
-                        face_id = i + 1
-                        crop = pil_img.crop((x1, y1, x2, y2))
-                        
-                        # Predictions
-                        age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
-                        emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
-                        gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
-                        
-                        frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
-                        
-                        # Drawing logic
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
-                        label = f"ID: {face_id}"
-                        (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)
-                        cv2.rectangle(frame, (x1, y1 - h - 10), (x1 + w, y1), (255, 0, 0), -1)
-                        cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                    
-                    frames_data[f"Frame {captured_count + 1} (Time: {frame_idx/fps:.1f}s)"] = (frame, frame_results)
-                    captured_count += 1
+                    # Stop if we've passed the last target index
+                    if frame_idx > target_indices[-1]:
+                        break
                 
                 st.session_state['processed_frames'] = frames_data
                 cap.release()
-
+                
         # --- VIEWING INTERFACE ---
         if 'processed_frames' in st.session_state and st.session_state['processed_frames']:
             frame_keys = list(st.session_state['processed_frames'].keys())
