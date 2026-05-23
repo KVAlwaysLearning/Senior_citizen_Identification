@@ -6,4 +6,6 @@ tensorflow
 gdown
 opencv-python-headless
 pillow
-pandas
+import pandas as pd  
+import numpy as np
+import cv2
