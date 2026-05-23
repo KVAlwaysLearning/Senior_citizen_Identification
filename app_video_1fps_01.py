@@ -95,8 +95,11 @@ if models:
                 st.session_state['processed_frames'] = frames_data
                 cap.release()
 
+        # --- VIEWING INTERFACE ---
         if 'processed_frames' in st.session_state and st.session_state['processed_frames']:
-            selection = st.selectbox("Select a frame to inspect:", list(st.session_state['processed_frames'].keys()))
+            frame_keys = list(st.session_state['processed_frames'].keys())
+            selection = st.selectbox("Select a frame to inspect:", frame_keys)
+            
             frame_img, frame_data = st.session_state['processed_frames'][selection]
             
             col1, col2 = st.columns([2, 1])
@@ -104,8 +107,14 @@ if models:
                 st.image(cv2.cvtColor(frame_img, cv2.COLOR_BGR2RGB), use_container_width=True)
             with col2:
                 st.markdown("### Frame Results")
-                if frame_data:
+                if frame_data and len(frame_data) > 0:
+                    # Explicitly create DataFrame from list of dicts
                     df = pd.DataFrame(frame_data)
-                    st.table(df[['ID', 'Age', 'Emotion', 'Gender']].set_index('ID'))
+                    
+                    # Ensure ID is treated as the index and displayed as a column
+                    # We re-index to ensure ID is the first column
+                    df = df.set_index('ID')
+                    
+                    st.table(df)
                 else:
                     st.info("No faces detected.")
