@@ -17,10 +17,32 @@ SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 
 @st.cache_resource
 def setup_environment(drive_folder_id):
-    # 1. Disable Ultralytics HUB to prevent signal registration
+    # 1. Patch the signal module to prevent the ValueError
+    import signal
+    import sys
+    
+    # Create a dummy function that does nothing
+    def dummy_signal_handler(signum, frame):
+        pass
+    
+    # Monkey-patch signal.signal to do nothing when called by ultralytics
+    # This prevents the thread-safety error
+    original_signal = signal.signal
+    def patched_signal(signalnum, handler):
+        # We allow it to run only if it's the main thread, otherwise ignore
+        if signal.getsignal(signalnum) == handler:
+            return handler
+        try:
+            return original_signal(signalnum, handler)
+        except ValueError:
+            return dummy_signal_handler
+            
+    signal.signal = patched_signal
+
+    # 2. Disable Hub and proceed with imports
+    import os
     os.environ["ULTRALYTICS_HUB_DISABLED"] = "true"
     
-    # 2. Imports after disabling the hub
     from ultralytics import YOLO
     from transformers import pipeline
     from tensorflow import keras
