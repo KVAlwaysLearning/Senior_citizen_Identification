@@ -71,6 +71,7 @@ if models:
         results_list = []
         pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         
+        # Updated loop with ID labeling
         for i, (x1, y1, x2, y2) in enumerate(coords):
             face_crop = pil_img.crop((x1, y1, x2, y2))
             
@@ -79,8 +80,17 @@ if models:
             emotion = max(emotion_pipe(face_crop), key=lambda x: x['score'])['label']
             gender = max(gender_pipe(face_crop), key=lambda x: x['score'])['label']
             
-            results_list.append({'Face': i+1, 'Age': int(age), 'Emotion': emotion.capitalize(), 'Gender': gender.capitalize()})
+            face_id = i + 1
+            results_list.append({'ID': face_id, 'Age': int(age), 'Emotion': emotion.capitalize(), 'Gender': gender.capitalize()})
+            
+            # Draw bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 3)
+            
+            # Draw ID Label Background (The visual link)
+            label = f"ID: {face_id}"
+            (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(frame, (x1, y1 - 25), (x1 + w, y1), (255, 165, 0), -1)
+            cv2.putText(frame, label, (x1, y1 - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         # Layout
         col1, col2 = st.columns([1.5, 1])
