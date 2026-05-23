@@ -100,6 +100,7 @@ if models:
             st.markdown("### Analysis Report")
             if results_list:
                 df = pd.DataFrame(results_list)
-                st.table(df.set_index('Face'))
+                # Ensure the column name here matches the dictionary key 'ID' exactly
+                st.table(df.set_index('ID'))
             else:
                 st.info("No faces detected.")
