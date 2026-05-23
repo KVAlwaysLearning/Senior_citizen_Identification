@@ -92,15 +92,17 @@ if models:
             cv2.rectangle(frame, (x1, y1 - 25), (x1 + w, y1), (255, 165, 0), -1)
             cv2.putText(frame, label, (x1, y1 - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-        # Layout
+       # 3. Layout: Image on Left, Results Table on Right
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+            # Displays the image with bounding boxes and ID tags drawn on it
+            st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Analyzed Image", use_container_width=True)
+            
         with col2:
             st.markdown("### Analysis Report")
             if results_list:
                 df = pd.DataFrame(results_list)
-                # Ensure the column name here matches the dictionary key 'ID' exactly
-                st.table(df.set_index('ID'))
+                # This makes ID the primary column and displays all data clearly
+                st.table(df) 
             else:
-                st.info("No faces detected.")
+                st.warning("No faces detected in the image.")
