@@ -105,16 +105,19 @@ if models:
             col1, col2 = st.columns([2, 1])
             with col1:
                 st.image(cv2.cvtColor(frame_img, cv2.COLOR_BGR2RGB), use_container_width=True)
-            with col2:
+           with col2:
                 st.markdown("### Frame Results")
-                if frame_data and len(frame_data) > 0:
-                    # Explicitly create DataFrame from list of dicts
+                if frame_data:
+                    # 1. Create DataFrame
                     df = pd.DataFrame(frame_data)
                     
-                    # Ensure ID is treated as the index and displayed as a column
-                    # We re-index to ensure ID is the first column
-                    df = df.set_index('ID')
+                    # 2. Force 'ID' to be the first column
+                    # This ensures it is not hidden or dropped
+                    cols = ['ID'] + [c for c in df.columns if c != 'ID']
+                    df = df[cols]
                     
-                    st.table(df)
+                    # 3. Render as a table
+                    # Using hide_index=True ensures 'ID' shows up as a column
+                    st.dataframe(df.set_index('ID'), use_container_width=True)
                 else:
                     st.info("No faces detected.")
