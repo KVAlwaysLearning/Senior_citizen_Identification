@@ -60,13 +60,17 @@ if models:
                 fps = cap.get(cv2.CAP_PROP_FPS)
                 frames_data = {}
                 frame_idx = 0
+                captured_count = 0  # Counter for the number of frames saved
                 
-                while cap.isOpened():
+                while cap.isOpened() and captured_count < 5: # Limit to 5 frames
                     ret, frame = cap.read()
                     if not ret: break
+                    
                     frame_idx += 1
+                    # Skip frames to pick one every 30 frames (or adjust for video length)
                     if frame_idx % 30 != 0: continue 
                     
+                    # Process frame
                     results = yolo(frame, classes=[0], verbose=False)
                     coords = [list(map(int, b.xyxy[0])) for b in results[0].boxes]
                     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -90,7 +94,8 @@ if models:
                         cv2.rectangle(frame, (x1, y1 - h - 10), (x1 + w, y1), (255, 0, 0), -1)
                         cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                     
-                    frames_data[f"Frame {frame_idx} (Time: {frame_idx/fps:.1f}s)"] = (frame, frame_results)
+                    frames_data[f"Frame {captured_count + 1} (Time: {frame_idx/fps:.1f}s)"] = (frame, frame_results)
+                    captured_count += 1
                 
                 st.session_state['processed_frames'] = frames_data
                 cap.release()
