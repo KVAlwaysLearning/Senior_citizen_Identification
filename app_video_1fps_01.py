@@ -17,14 +17,19 @@ SECRET_FOLDER_ID = st.secrets["drive_folder_id"]
 
 @st.cache_resource
 def setup_environment(drive_folder_id):
-    # Imports here
+    # 1. Disable Ultralytics HUB to prevent signal registration
+    os.environ["ULTRALYTICS_HUB_DISABLED"] = "true"
+    
+    # 2. Imports after disabling the hub
     from ultralytics import YOLO
     from transformers import pipeline
     from tensorflow import keras
   
-    if not os.path.exists(BASE_MODEL_DIR):
+   if not os.path.exists(BASE_MODEL_DIR):
         gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
+    
     yolo = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
+
     emotion_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
     gender_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "gender"))
     age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
