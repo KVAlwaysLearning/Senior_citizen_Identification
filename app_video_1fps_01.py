@@ -106,7 +106,7 @@ if models:
                 cap.release()
                 
         # --- VIEWING INTERFACE ---
-        if 'processed_frames' in st.session_state and st.session_state['processed_frames']:
+    if 'processed_frames' in st.session_state and st.session_state['processed_frames']:
             frame_keys = list(st.session_state['processed_frames'].keys())
             selection = st.selectbox("Select a frame to inspect:", frame_keys)
             
