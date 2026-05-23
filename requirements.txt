@@ -1,11 +1,11 @@
 streamlit
 ultralytics
 transformers
-torch==2.0.1
+torch
 tensorflow==2.14.0
+numpy==1.24.3
 gdown
 opencv-python-headless
 pillow
 pandas
 h5py
-numpy
