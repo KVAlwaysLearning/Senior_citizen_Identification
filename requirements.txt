@@ -1,11 +1,11 @@
-streamlit
-ultralytics
-transformers
-torch
-tensorflow
-gdown
-opencv-python-headless
-pillow
-import pandas as pd  
-import numpy as np
-import cv2
+import streamlit as st
+import os
+import gdown
+import pandas as pd  # <--- Ensure this is here
+import numpy as np   # <--- Ensure this is here
+import cv2           # <--- Ensure this is here
+from PIL import Image
+import tensorflow as tf
+from tensorflow import keras
+from transformers import pipeline
+from ultralytics import YOLO
