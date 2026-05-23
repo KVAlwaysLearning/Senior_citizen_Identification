@@ -9,3 +9,4 @@ opencv-python-headless
 pillow
 pandas
 h5py
+setuptools  # <--- Add this line
