@@ -1,4 +1,4 @@
-setuptools
+setuptools==68.0.0
 packaging
 streamlit
 ultralytics==8.0.0
