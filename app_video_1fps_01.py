@@ -26,7 +26,7 @@ def setup_environment(drive_folder_id):
     from tensorflow import keras
   
    if not os.path.exists(BASE_MODEL_DIR):
-        gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
+    gdown.download_folder(id=drive_folder_id, output=BASE_MODEL_DIR, quiet=True)
     
     yolo = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
 
