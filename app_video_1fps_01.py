@@ -15,8 +15,7 @@ SECRET_FOLDER_ID = st.secrets["drive_folder_id"] if "drive_folder_id" in st.secr
 @st.cache_resource
 def setup_environment(drive_folder_id):
     import signal
-    
-    # 1. Patch signal module to prevent thread crashes
+    # Patch signal module to prevent thread crashes
     def dummy_signal_handler(signum, frame): pass
     original_signal = signal.signal
     def patched_signal(signalnum, handler):
@@ -24,7 +23,6 @@ def setup_environment(drive_folder_id):
         except ValueError: return dummy_signal_handler
     signal.signal = patched_signal
 
-    # 2. Setup environment and imports
     os.environ["ULTRALYTICS_HUB_DISABLED"] = "true"
     from ultralytics import YOLO
     from transformers import pipeline
@@ -52,9 +50,16 @@ if models:
     uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 
     if uploaded_video:
+        # Detect file change
+        current_file_key = f"{uploaded_video.name}_{uploaded_video.size}"
+        if st.session_state.get('last_uploaded_file') != current_file_key:
+            st.session_state['processed_frames'] = {} 
+            st.session_state['last_uploaded_file'] = current_file_key
+            st.rerun() 
+            
         with open("temp_vid.mp4", "wb") as f: f.write(uploaded_video.read())
-        
-        if 'processed_frames' not in st.session_state:
+            
+        if 'processed_frames' not in st.session_state or not st.session_state['processed_frames']:
             with st.spinner("Processing video..."):
                 cap = cv2.VideoCapture("temp_vid.mp4")
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -65,6 +70,7 @@ if models:
                 frames_data = {}
                 frame_idx = 0
                 
+                # Loop until we reach the last index we need
                 while cap.isOpened() and frame_idx <= target_indices[-1]:
                     ret, frame = cap.read()
                     if not ret: break
@@ -78,16 +84,12 @@ if models:
                         for i, (x1, y1, x2, y2) in enumerate(coords):
                             face_id = i + 1
                             crop = pil_img.crop((x1, y1, x2, y2))
-                            
                             age = int(age_model.predict(np.expand_dims(np.array(crop.resize((224,224)), dtype=np.float32)/255.0, axis=0), verbose=0)[0][0])
                             emo = max(emotion_pipe(crop), key=lambda x: x['score'])['label']
                             gen = max(gender_pipe(crop), key=lambda x: x['score'])['label']
-                            
                             frame_results.append({'ID': face_id, 'Age': age, 'Emotion': emo.capitalize(), 'Gender': gen.capitalize()})
                             
-                            # Draw Rectangle
                             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
-                            # Draw Label
                             label = f"ID: {face_id}"
                             (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)
                             cv2.rectangle(frame, (x1, y1 - h - 10), (x1 + w, y1), (255, 0, 0), -1)
@@ -101,8 +103,9 @@ if models:
                 cap.release()
 
         # --- VIEWING INTERFACE ---
-        if 'processed_frames' in st.session_state and st.session_state['processed_frames']:
-            selection = st.selectbox("Select a frame to inspect:", list(st.session_state['processed_frames'].keys()))
+        if st.session_state.get('processed_frames'):
+            keys = list(st.session_state['processed_frames'].keys())
+            selection = st.selectbox("Select a frame to inspect:", keys)
             frame_img, frame_data = st.session_state['processed_frames'][selection]
             
             col1, col2 = st.columns([2, 1])
